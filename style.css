@@ -1,0 +1,80 @@
+* {
+    color: var(--clr-foreground);
+    font: 'Fira Sans', sans-serif;
+}
+
+div.divider {
+    width: 80%;
+    margin-inline: auto;
+    border-bottom: 1px solid var(--clr-foreground-3); 
+    height: 0;
+    margin-block: 1em;
+}
+
+div#topbar {
+  grid-area: topbar;
+  background: var(--clr-background);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: start;
+  padding-inline: 1em;
+}
+
+div#sidebar-top {
+  grid-area: sidebartop;
+  background: var(--clr-background-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: start;
+  padding-inline: 1em;
+}
+
+div#sidebar {
+  grid-area: sidebar;
+  background: var(--clr-background-5);
+  padding: 1em;
+}
+
+div#controls{
+    display: grid;
+    grid-template-columns: 1fr 1fr 5ch;
+    gap: 1em;
+}
+
+div#source-panel {
+  grid-area: editor;
+  /* background: var(--clr-yellow-5); */
+}
+
+div#preview-panel {
+  grid-area: preview;
+  /* background: var(--clr-green-5); */
+}
+
+body {
+  background-color: var(--clr-background);
+  color: var(--clr-foreground);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 3fr 2fr 5in;
+  grid-template-rows: 5em 1fr;
+  grid-template-areas:
+    "topbar topbar sidebartop"
+    "editor preview sidebar";
+  height: 100svh;
+  margin: 0;
+}
+
+& #preview-panel > canvas {
+    /* https://stackoverflow.com/questions/14068103/disable-antialising-when-scaling-images */
+    image-rendering: optimizeSpeed;             /* STOP SMOOTHING, GIVE ME SPEED  */
+    image-rendering: -moz-crisp-edges;          /* Firefox                        */
+    image-rendering: -o-crisp-edges;            /* Opera                          */
+    image-rendering: -webkit-optimize-contrast; /* Chrome (and eventually Safari) */
+    image-rendering: pixelated;                 /* Universal support since 2021   */
+    image-rendering: optimize-contrast;         /* CSS3 Proposed                  */
+    -ms-interpolation-mode: nearest-neighbor;   /* IE8+                           */
+}
+
