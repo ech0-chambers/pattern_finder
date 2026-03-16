@@ -59,7 +59,7 @@ function create_num_input(label, min = 0, max = 10, step = 1, parent = document,
     s.name = name;
     s.id = name;
     s.value = value;
-    s.num_value = () => {return s.value == "" ? default_value : parseFloat(s.value); };
+    s.num_value = () => { return s.value == "" ? default_value : parseFloat(s.value); };
     s.style.gridColumn = "2";
     parent.appendChild(s);
     s.oninput = (e) => {
@@ -75,7 +75,7 @@ function create_num_input(label, min = 0, max = 10, step = 1, parent = document,
     };
     d = document.createElement("div");
     d.classList.add("spacer");
-    d.style.gridColumn  = "3";
+    d.style.gridColumn = "3";
     parent.appendChild(d);
     return s;
 }
@@ -101,7 +101,7 @@ function create_text_input(label, parent = document, name = undefined, value = u
     }
     d = document.createElement("div");
     d.classList.add("spacer");
-    d.style.gridColumn  = "3";
+    d.style.gridColumn = "3";
     parent.appendChild(d);
     return s;
 }
@@ -164,7 +164,7 @@ class Corner {
         this.p = p;
         this.dragging = false;
         this.hovered = false;
-        this.offset = p.createVector(0,0);
+        this.offset = p.createVector(0, 0);
     }
 
     draw(A, B, highlight) {
@@ -209,7 +209,7 @@ class Corner {
             this.pos.y += event.movementY * dragging_scale / pan_zoom.scale;
         }
     }
-    
+
     released() {
         this.dragging = false;
     }
@@ -267,16 +267,16 @@ class Quad {
                 }
             }
         });
-        
+
         this.p.prevent_mouse_events = any_hovered; // prevent panning the canvas if we're instead grabbing a corner
         this.p.stroke(this.draw_color);
         this.p.strokeWeight(2);
         this.p.fill(this.fill_color.r, this.fill_color.g, this.fill_color.b, this.fill_opacity * 255);
         this.p.beginShape();
-            this.p.vertex(this.bottom_left.pos.x, this.bottom_left.pos.y);
-            this.p.vertex(this.bottom_right.pos.x, this.bottom_right.pos.y);
-            this.p.vertex(this.top_right.pos.x, this.top_right.pos.y);
-            this.p.vertex(this.top_left.pos.x, this.top_left.pos.y);
+        this.p.vertex(this.bottom_left.pos.x, this.bottom_left.pos.y);
+        this.p.vertex(this.bottom_right.pos.x, this.bottom_right.pos.y);
+        this.p.vertex(this.top_right.pos.x, this.top_right.pos.y);
+        this.p.vertex(this.top_left.pos.x, this.top_left.pos.y);
         this.p.endShape(this.p.CLOSE);
         this.bottom_left.draw(this.bottom_right, this.top_left, closest.corner == this.bottom_left && closest.dist < 20 / pan_zoom.scale);
         this.bottom_right.draw(this.bottom_left, this.top_right, closest.corner == this.bottom_right && closest.dist < 20 / pan_zoom.scale);
@@ -307,15 +307,15 @@ class Quad {
     }
 
     pressed() {
-        this.corners.forEach((c) => {c.pressed();});
+        this.corners.forEach((c) => { c.pressed(); });
     }
 
     released() {
-        this.corners.forEach((c) => {c.released();});
+        this.corners.forEach((c) => { c.released(); });
     }
 
     dragged(event) {
-        this.corners.forEach((c) => {c.dragged(event);});
+        this.corners.forEach((c) => { c.dragged(event); });
     }
 }
 
@@ -329,28 +329,41 @@ let q;
 let input_canvas_container = document.getElementById("source-panel");
 let pan_zoom;
 let settings_container = document.getElementById("controls");
-let settings = {
-    upload_button: create_button("Upload Image", settings_container)
-};
-create_divider(settings_container);
-settings.filename = create_text_input("Filename", settings_container, "filename", "untitled.png");
-settings.download_button = create_button("Download Pattern", settings_container);
-create_divider(settings_container);
-settings.num_stitches= create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
-    NUM_STITCHES = v;
-});
-settings.num_rows = create_num_input("Rows", 1, 1000, 1, settings_container, "rows", NUM_ROWS, (v) => {
-    NUM_ROWS = v;
-});
-settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
-    IMG_THRESHOLD = v;
-});
-settings.preview_scale = create_slider("Preview Scale", 1, 15, 0.1, settings_container, "preview-scale", 3, (v) => {
-    PREVIEW_SCALE = v;
-    preview_canvas_container.children[0].style.transform = `scale(${v}) translate(${(v - 1) / (2 * v) * 100}%, ${(v - 1) / (2 * v) * 100}%)`;
-});
+let settings;
+
 
 function input_sketch(p) {
+    settings = {
+        // upload_button: create_button("Upload Image", settings_container)
+        upload_button: p.createFileInput((file) => {
+            if (file.type == "image") {
+                img = p.createImg(file.data, '');
+                img.hide();                
+            } else {
+                img = null;
+            }
+        })
+    };
+    settings.upload_button.parent(settings_container);
+    settings.upload_button.elt.style.gridColumn = "1 / span 3";
+    create_divider(settings_container);
+    settings.filename = create_text_input("Filename", settings_container, "filename", "untitled.png");
+    settings.download_button = create_button("Download Pattern", settings_container);
+    create_divider(settings_container);
+    settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
+        NUM_STITCHES = v;
+    });
+    settings.num_rows = create_num_input("Rows", 1, 1000, 1, settings_container, "rows", NUM_ROWS, (v) => {
+        NUM_ROWS = v;
+    });
+    settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
+        IMG_THRESHOLD = v;
+    });
+    settings.preview_scale = create_slider("Preview Scale", 1, 15, 0.1, settings_container, "preview-scale", 3, (v) => {
+        PREVIEW_SCALE = v;
+        preview_canvas_container.children[0].style.transform = `scale(${v}) translate(${(v - 1) / (2 * v) * 100}%, ${(v - 1) / (2 * v) * 100}%)`;
+    });
+    //
     p.setup = async function () {
         input_canvas = p.createCanvas(800, 984, p.WEBGL);
         pan_zoom = new Controls(input_canvas, p);
@@ -368,12 +381,16 @@ function input_sketch(p) {
         info = document.getElementById("info");
     }
     p.draw = function () {
-        p.background(colours.background[4]);
-        pan_zoom.apply_pan_zoom(p);
-        p.imageMode(p.CENTER);
-        p.image(img, 0, 0, p.width, p.height);
-        q.draw(NUM_STITCHES, NUM_ROWS);
-        pan_zoom.undo_pan_zoom(p);
+        if (img) {
+            p.background(colours.background[4]);
+            pan_zoom.apply_pan_zoom(p);
+            p.imageMode(p.CENTER);
+            p.image(img, 0, 0, p.width, p.height);
+            q.draw(NUM_STITCHES, NUM_ROWS);
+            pan_zoom.undo_pan_zoom(p);
+        } else {
+            p.background(colours.background[4]);
+        }
         // p.noLoop();
     }
     p.mousePressed = function () {
@@ -400,6 +417,13 @@ function preview_sketch(p) {
         preview_canvas.parent(preview_canvas_container);
         imgShader = await p.loadShader('shader.vert', 'shader.frag');
         p.noStroke();
+        settings.download_button.onclick = () => {
+            let filename = settings.filename.value;
+            if (!filename.endsWith(".png")) {
+                filename = filename + ".png";
+            }
+            p.saveCanvas(filename);
+        }
     };
     p.draw = function () {
         if (p && img) { // guard since occasionally these won't be loaded by the time this starts.
