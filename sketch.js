@@ -83,9 +83,6 @@ function create_num_input(label, min = 0, max = 10, step = 1, parent = document,
 function create_text_input(label, parent = document, name = undefined, value = undefined, onchange = undefined) {
     name = name == undefined ? label : name;
     value = value == undefined ? "" : value;
-    // let d = document.createElement("div");
-    // d.id = `${name}_container`;
-    // d.classList.add("text-input-container");
     let l = document.createElement("span");
     l.classList.add("text-input-label");
     l.innerText = label;
@@ -330,7 +327,12 @@ let input_canvas_container = document.getElementById("source-panel");
 let pan_zoom;
 let settings_container = document.getElementById("controls");
 let settings;
-
+let measure = {
+    dx: undefined,
+    dy: undefined
+}; // for "measuring" in one area and extrapolating number of rows/stitches. This will not be accurate for quads that are very non-rectangular
+// dx -> stitch size along the axis bl -> br and tl -> tr (average)
+// dy -> row size along the axis bl -> tl and br -> tr (average)
 
 function input_sketch(p) {
     settings = {
@@ -352,10 +354,13 @@ function input_sketch(p) {
     create_divider(settings_container);
     settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
         NUM_STITCHES = v;
+        measure = {dx: undefined, dy: undefined};
     });
     settings.num_rows = create_num_input("Rows", 1, 1000, 1, settings_container, "rows", NUM_ROWS, (v) => {
         NUM_ROWS = v;
+        measure = {dx: undefined, dy: undefined};
     });
+    settings.measure_button = create_button("Measure", settings_container)
     settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
         IMG_THRESHOLD = v;
     });
@@ -379,6 +384,11 @@ function input_sketch(p) {
         p.rectMode(p.CORNERS);
         q = new Quad(p.createVector(-150, 100), p.createVector(130, 90), p.createVector(100, -150), p.createVector(-120, -140), p);
         info = document.getElementById("info");
+        settings.measure_button.onclick = () => {
+            measure.dx = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / NUM_STITCHES;
+            measure.dy = (q.top_right.pos.dist(q.bottom_right.pos) + q.top_left.pos.dist(q.bottom_left.pos)) / 2 / NUM_ROWS;
+            console.log(measure);
+        };
     }
     p.draw = function () {
         if (img) {
@@ -398,6 +408,16 @@ function input_sketch(p) {
     }
     p.mouseReleased = function () {
         q.released();
+        if (measure.dx != undefined && measure.dy != undefined) {
+            let s = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / measure.dx;
+            s = Math.round(s);
+            settings.num_stitches.value = s;
+            NUM_STITCHES = s;
+            let r = (q.top_right.pos.dist(q.bottom_right.pos) + q.top_left.pos.dist(q.bottom_left.pos)) / 2 / measure.dy;
+            r = Math.round(r);
+            settings.num_rows.value = r;
+            NUM_ROWS = r;
+        }
     }
     p.mouseDragged = function (event) {
         q.dragged(event);
