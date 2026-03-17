@@ -333,6 +333,37 @@ let measure = {
 }; // for "measuring" in one area and extrapolating number of rows/stitches. This will not be accurate for quads that are very non-rectangular
 // dx -> stitch size along the axis bl -> br and tl -> tr (average)
 // dy -> row size along the axis bl -> tl and br -> tr (average)
+let img;
+let img_display_size;
+let has_changed = true; // this will be false unless something has been modified in the latest loop. Only draws the shader (output) if something has changed.
+
+
+function get_content_rect(element) {
+    let bbox = element.getBoundingClientRect();
+    let computed_style = window.getComputedStyle(element);
+    let dimensions = {
+        width: bbox.width,
+        height: bbox.height
+    };
+    dimensions.width  -= parseFloat(computed_style.borderLeftWidth)   + parseFloat(computed_style.marginLeft)   + parseFloat(computed_style.paddingLeft) 
+                       + parseFloat(computed_style.borderRightWidth)  + parseFloat(computed_style.marginRight)  + parseFloat(computed_style.paddingRight);
+    dimensions.height -= parseFloat(computed_style.borderTopWidth)    + parseFloat(computed_style.marginTop)    + parseFloat(computed_style.paddingTop) 
+                       + parseFloat(computed_style.borderBottomWidth) + parseFloat(computed_style.marginBottom) + parseFloat(computed_style.paddingBottom);
+    return dimensions;
+}
+
+function resize_preview_canvas(){
+    let cnv = preview_canvas_container.children[0];
+    let bbox = get_content_rect(preview_canvas_container);
+    let s = bbox.width / NUM_STITCHES;
+    s = bbox.height / NUM_ROWS < s ? bbox.height / NUM_ROWS : s;
+    cnv.style.transform = `scale(${s}) translate(${(s - 1) / (2 * s) * 100}%, ${(s - 1) / (2 * s) * 100}%)`;
+}
+
+let last_corners = [0, 0, 0, 0];
+let last_num_stitches;
+let last_num_rows;
+let last_threshold;
 
 function input_sketch(p) {
     settings = {
@@ -355,39 +386,44 @@ function input_sketch(p) {
     settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
         NUM_STITCHES = v;
         measure = {dx: undefined, dy: undefined};
+        resize_preview_canvas();
     });
     settings.num_rows = create_num_input("Rows", 1, 1000, 1, settings_container, "rows", NUM_ROWS, (v) => {
         NUM_ROWS = v;
         measure = {dx: undefined, dy: undefined};
+        resize_preview_canvas();
     });
     settings.measure_button = create_button("Measure", settings_container)
     settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
         IMG_THRESHOLD = v;
     });
-    settings.preview_scale = create_slider("Preview Scale", 1, 15, 0.1, settings_container, "preview-scale", 3, (v) => {
-        PREVIEW_SCALE = v;
-        preview_canvas_container.children[0].style.transform = `scale(${v}) translate(${(v - 1) / (2 * v) * 100}%, ${(v - 1) / (2 * v) * 100}%)`;
-    });
+    // settings.preview_scale = create_slider("Preview Scale", 1, 15, 0.1, settings_container, "preview-scale", 3, (v) => {
+    //     PREVIEW_SCALE = v;
+    // });
     //
     p.setup = async function () {
-        input_canvas = p.createCanvas(800, 984, p.WEBGL);
+        let bbox = get_content_rect(input_canvas_container);
+        input_canvas = p.createCanvas(bbox.width, bbox.height, p.WEBGL);
         pan_zoom = new Controls(input_canvas, p);
         input_canvas.parent(input_canvas_container);
         img = await p.loadImage('pattern.png');
+        let img_scale = p.width / img.width;
+        img_scale = p.height / img.height < img_scale ? p.height / img.height : img_scale;
+        img_display_size = {
+            width: img.width * img_scale,
+            height: img.height * img_scale
+        }
         p.noStroke();
         bottom_left = p.createVector(-137.5, 100);
         top_right = p.createVector(126, -97.5);
         bottom_right = p.createVector(top_right.x, bottom_left.y);
         top_left = p.createVector(bottom_left.x, top_right.y);
-        img_width = p.width;
-        img_height = p.height;
         p.rectMode(p.CORNERS);
         q = new Quad(p.createVector(-150, 100), p.createVector(130, 90), p.createVector(100, -150), p.createVector(-120, -140), p);
         info = document.getElementById("info");
         settings.measure_button.onclick = () => {
             measure.dx = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / NUM_STITCHES;
             measure.dy = (q.top_right.pos.dist(q.bottom_right.pos) + q.top_left.pos.dist(q.bottom_left.pos)) / 2 / NUM_ROWS;
-            console.log(measure);
         };
     }
     p.draw = function () {
@@ -395,9 +431,30 @@ function input_sketch(p) {
             p.background(colours.background[4]);
             pan_zoom.apply_pan_zoom(p);
             p.imageMode(p.CENTER);
-            p.image(img, 0, 0, p.width, p.height);
+            p.image(img, 0, 0, img_display_size.width, img_display_size.height);
             q.draw(NUM_STITCHES, NUM_ROWS);
             pan_zoom.undo_pan_zoom(p);
+            // definitely a better way to do this, but it works.
+            has_changed = !(
+                   last_corners[0].x == q.bottom_left.pos.x
+                && last_corners[0].y == q.bottom_left.pos.y
+                && last_corners[1].x == q.bottom_right.pos.x
+                && last_corners[1].y == q.bottom_right.pos.y
+                && last_corners[2].x == q.top_right.pos.x
+                && last_corners[2].y == q.top_right.pos.y
+                && last_corners[3].x == q.top_left.pos.x
+                && last_corners[3].y == q.top_left.pos.y
+                && last_num_rows == NUM_ROWS
+                && last_num_stitches == NUM_STITCHES
+                && last_threshold == IMG_THRESHOLD
+            );
+            last_corners[0] = q.bottom_left.pos.copy();
+            last_corners[1] = q.bottom_right.pos.copy();
+            last_corners[2] = q.top_right.pos.copy();
+            last_corners[3] = q.top_left.pos.copy();
+            last_num_rows = NUM_ROWS;
+            last_num_stitches = NUM_STITCHES;
+            last_threshold = IMG_THRESHOLD;
         } else {
             p.background(colours.background[4]);
         }
@@ -417,6 +474,7 @@ function input_sketch(p) {
             r = Math.round(r);
             settings.num_rows.value = r;
             NUM_ROWS = r;
+            resize_preview_canvas();
         }
     }
     p.mouseDragged = function (event) {
@@ -430,6 +488,7 @@ new p5(input_sketch);
 
 // Preview canvas and pattern extraction
 let preview_canvas_container = document.getElementById("preview-panel");
+let preview_canvas;
 function preview_sketch(p) {
     p.setup = async function () {
         p.pixelDensity(1);
@@ -444,9 +503,10 @@ function preview_sketch(p) {
             }
             p.saveCanvas(filename);
         }
+        resize_preview_canvas();
     };
     p.draw = function () {
-        if (p && img) { // guard since occasionally these won't be loaded by the time this starts.
+        if (has_changed && p && img) { // guard since occasionally these won't be loaded by the time this starts.
             p.pixelDensity(1); // have to set this again in chrome for some reason. Really messes with stuff if it's wrong.#
             p.resizeCanvas(NUM_STITCHES, NUM_ROWS);
             p.background(colours.red[5]);
@@ -454,12 +514,13 @@ function preview_sketch(p) {
             p.imageShader(imgShader);
             imgShader.setUniform('uNumCells', [NUM_STITCHES, NUM_ROWS]);
             imgShader.setUniform('uThreshold', IMG_THRESHOLD);
-            imgShader.setUniform('uBottomLeft', [q.bottom_left.pos.x / img_width + 0.5, q.bottom_left.pos.y / img_height + 0.5]);
-            imgShader.setUniform('uTopRight', [q.top_right.pos.x / img_width + 0.5, q.top_right.pos.y / img_height + 0.5]);
-            imgShader.setUniform('uBottomRight', [q.bottom_right.pos.x / img_width + 0.5, q.bottom_right.pos.y / img_height + 0.5]);
-            imgShader.setUniform('uTopLeft', [q.top_left.pos.x / img_width + 0.5, q.top_left.pos.y / img_height + 0.5]);
+            imgShader.setUniform('uBottomLeft', [q.bottom_left.pos.x / img_display_size.width + 0.5, q.bottom_left.pos.y / img_display_size.height + 0.5]);
+            imgShader.setUniform('uTopRight', [q.top_right.pos.x / img_display_size.width + 0.5, q.top_right.pos.y / img_display_size.height + 0.5]);
+            imgShader.setUniform('uBottomRight', [q.bottom_right.pos.x / img_display_size.width + 0.5, q.bottom_right.pos.y / img_display_size.height + 0.5]);
+            imgShader.setUniform('uTopLeft', [q.top_left.pos.x / img_display_size.width + 0.5, q.top_left.pos.y / img_display_size.height + 0.5]);
             imgShader.setUniform('uTexture', img);
             p.image(img, 0, 0, p.width, p.height);
+            has_changed = false;
         }
         // p.noLoop();
     }

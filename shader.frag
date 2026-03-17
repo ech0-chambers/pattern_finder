@@ -22,7 +22,7 @@ vec2 pattern_coord_to_image_coord(vec2 p, vec2 bottom_left, vec2 bottom_right, v
 void main() {
 // Offset the input coordinate
     // 50x50 grid of samples within the pattern pixel
-    const int num_samples = 50;
+    const int num_samples = 20;
     // skip the first and last 3 in each direction, to allow for untidy edges or gridlines
     const int skip = 3;
     // bottom left of the pixel in the preview pattern

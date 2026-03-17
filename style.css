@@ -45,11 +45,13 @@ div#controls{
 
 div#source-panel {
   grid-area: editor;
+  padding: 1em;
   /* background: var(--clr-yellow-5); */
 }
 
 div#preview-panel {
   grid-area: preview;
+  padding: 1em;
   /* background: var(--clr-green-5); */
 }
 
@@ -67,7 +69,7 @@ body {
   margin: 0;
 }
 
-& #preview-panel > canvas {
+#preview-panel > canvas {
     /* https://stackoverflow.com/questions/14068103/disable-antialising-when-scaling-images */
     image-rendering: optimizeSpeed;             /* STOP SMOOTHING, GIVE ME SPEED  */
     image-rendering: -moz-crisp-edges;          /* Firefox                        */
