@@ -1,6 +1,6 @@
 * {
     color: var(--clr-foreground);
-    font: 'Fira Sans', sans-serif;
+    font-family: 'Fira Sans', sans-serif;
 }
 
 div.divider {
@@ -67,6 +67,32 @@ body {
     "editor preview sidebar";
   height: 100svh;
   margin: 0;
+}
+
+button,
+label:has(input) {
+  font-size: 0.9rem;
+  text-align: center;
+  outline: none;
+  border: none;
+  background: var(--clr-green-4);
+  padding-block: 0.5em;
+  transition: 0.3s;
+  width: 60%;
+  border-radius: 0.25em;
+  margin: auto;
+  &:hover {
+    background: var(--clr-green);
+  }
+}
+
+input[type="number"],
+input[type="text"] {
+  background: var(--clr-blue-5);
+  border: none;
+  outline: none;
+  padding-block: 0.5em;
+  padding-inline: 1em;
 }
 
 #preview-panel > canvas {

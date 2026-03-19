@@ -1,11 +1,3 @@
-/*
-* TODO: 
-*   - zoom and pan
-*   - include the actual shader
-*   - UI
-*/
-
-let info;
 
 function create_slider(label, min = 0, max = 10, step = 1, parent = document, name = undefined, value = undefined, onchange = undefined) {
     name = name == undefined ? label : name;
@@ -115,6 +107,26 @@ function create_button(label, parent = document, name = undefined, onclick = und
     return b;
 }
 
+function create_file_input(label, parent = document, p, name = undefined, onclick = undefined) {
+    if (name == undefined) {
+        name = label;
+    }
+    let i = p.createFileInput(onclick).elt;
+    i.id = name;
+    i.style.display = "none";
+    i.name = name;
+    i.accept = "image/*";
+    let l = document.createElement("label");
+    l.htmlFor = name;
+    l.style.cursor = "pointer";
+    l.style.gridColumn = "1 / span 3";
+    l.innerText = label;
+    parent.appendChild(l);
+    l.appendChild(i);
+    return i;
+}
+
+
 function create_divider(parent) {
     let d = document.createElement("div");
     d.classList.add("divider");
@@ -132,26 +144,6 @@ function hexToRgb(hex) {
     } : null;
 }
 
-function intersection(A2, A1, B1, B2) {
-    // A1: p5.Vector ...
-    // intersection between lines A1 -> A2 and B1 -> B2.
-    // if parallel, returns undefined
-    let dxA = A1.x - A2.x;
-    let dyA = A1.y - A2.y;
-    let dxB = B1.x - B2.x;
-    let dyB = B1.y - B2.y;
-    let D = dxA * dyB - dxB * dyA;
-    if (Math.abs(D) < 1e-9) {
-        return undefined;
-    }
-    let CA = A1.x * A2.y - A2.x * A1.y;
-    let CB = B1.x * B2.y - B2.x * B1.y;
-    return new p5.Vector(
-        (CA * dxB - dxA * CB) / D,
-        (CA * dyB - dyA * CB) / D
-    );
-}
-
 class Corner {
     constructor(pos, p, draw_colour = colours.foreground.base, highlight_colour = colours.yellow.base) {
         this.pos = pos;
@@ -165,8 +157,6 @@ class Corner {
     }
 
     draw(A, B, highlight) {
-        if (highlight) {
-        }
         if (highlight || this.dragging) {
             this.p.stroke(this.highlight_colour);
             this.p.strokeWeight(6);
@@ -249,6 +239,7 @@ class Quad {
     }
 
     draw(ticks_x, ticks_y) {
+        // check if mouse is over a corner
         let mousePos = this.p.createVector(this.p.mouseX - this.p.width / 2, this.p.mouseY - this.p.height / 2);
         mousePos = pan_zoom.screen_to_world(mousePos);
         let closest = this.closest_corner(mousePos);
@@ -266,6 +257,7 @@ class Quad {
         });
 
         this.p.prevent_mouse_events = any_hovered; // prevent panning the canvas if we're instead grabbing a corner
+        // Draw
         this.p.stroke(this.draw_color);
         this.p.strokeWeight(2);
         this.p.fill(this.fill_color.r, this.fill_color.g, this.fill_color.b, this.fill_opacity * 255);
@@ -279,6 +271,7 @@ class Quad {
         this.bottom_right.draw(this.bottom_left, this.top_right, closest.corner == this.bottom_right && closest.dist < 20 / pan_zoom.scale);
         this.top_right.draw(this.top_left, this.bottom_right, closest.corner == this.top_right && closest.dist < 20 / pan_zoom.scale);
         this.top_left.draw(this.top_right, this.bottom_left, closest.corner == this.top_left && closest.dist < 20 / pan_zoom.scale);
+        // draw the grid
         this.p.stroke(this.draw_color);
         this.p.strokeWeight(2);
         for (let i = 1; i < ticks_x; i++) {
@@ -294,12 +287,6 @@ class Quad {
             let right = this.top_right.pos.copy();
             right.lerp(this.bottom_right.pos, i / ticks_y);
             this.p.line(left.x, left.y, right.x, right.y);
-        }
-
-        let i = intersection(this.bottom_left.pos, this.bottom_right.pos, this.top_left.pos, this.top_right.pos);
-        if (i != undefined) {
-            this.p.line(this.bottom_right.pos.x, this.bottom_right.pos.y, i.x, i.y);
-            this.p.line(this.top_right.pos.x, this.top_right.pos.y, i.x, i.y);
         }
     }
 
@@ -318,7 +305,7 @@ class Quad {
 
 
 let NUM_STITCHES = 24; // placeholders
-let NUM_ROWS = 56;
+let NUM_ROWS = 48;
 let IMG_THRESHOLD = 0.5;
 let PREVIEW_SCALE = 3;
 
@@ -335,24 +322,26 @@ let measure = {
 // dy -> row size along the axis bl -> tl and br -> tr (average)
 let img;
 let img_display_size;
-let has_changed = true; // this will be false unless something has been modified in the latest loop. Only draws the shader (output) if something has changed.
+let has_changed = true; // this will be false unless something has been modified in the latest loop. 
+// Only draws the shader (output) if something has changed.
 
 
 function get_content_rect(element) {
+    // internal width and height without margin, padding, border etc. Does not check for box-sizing.
     let bbox = element.getBoundingClientRect();
     let computed_style = window.getComputedStyle(element);
     let dimensions = {
         width: bbox.width,
         height: bbox.height
     };
-    dimensions.width  -= parseFloat(computed_style.borderLeftWidth)   + parseFloat(computed_style.marginLeft)   + parseFloat(computed_style.paddingLeft) 
-                       + parseFloat(computed_style.borderRightWidth)  + parseFloat(computed_style.marginRight)  + parseFloat(computed_style.paddingRight);
-    dimensions.height -= parseFloat(computed_style.borderTopWidth)    + parseFloat(computed_style.marginTop)    + parseFloat(computed_style.paddingTop) 
-                       + parseFloat(computed_style.borderBottomWidth) + parseFloat(computed_style.marginBottom) + parseFloat(computed_style.paddingBottom);
+    dimensions.width -= parseFloat(computed_style.borderLeftWidth) + parseFloat(computed_style.marginLeft) + parseFloat(computed_style.paddingLeft)
+        + parseFloat(computed_style.borderRightWidth) + parseFloat(computed_style.marginRight) + parseFloat(computed_style.paddingRight);
+    dimensions.height -= parseFloat(computed_style.borderTopWidth) + parseFloat(computed_style.marginTop) + parseFloat(computed_style.paddingTop)
+        + parseFloat(computed_style.borderBottomWidth) + parseFloat(computed_style.marginBottom) + parseFloat(computed_style.paddingBottom);
     return dimensions;
 }
 
-function resize_preview_canvas(){
+function resize_preview_canvas() {
     let cnv = preview_canvas_container.children[0];
     let bbox = get_content_rect(preview_canvas_container);
     let s = bbox.width / NUM_STITCHES;
@@ -360,74 +349,93 @@ function resize_preview_canvas(){
     cnv.style.transform = `scale(${s}) translate(${(s - 1) / (2 * s) * 100}%, ${(s - 1) / (2 * s) * 100}%)`;
 }
 
+function resize_input_canvas() {
+    input_canvas.resize(10, 10); // make it small first so that its size doesn't influence the "natural" size of its parent.
+    let bbox = get_content_rect(input_canvas_container);
+    input_canvas.resize(bbox.width - 5, bbox.height - 5);
+}
+
+
+// For tracking changes
 let last_corners = [0, 0, 0, 0];
 let last_num_stitches;
 let last_num_rows;
 let last_threshold;
 
 function input_sketch(p) {
+    // Create the settings menu
+    p.calc_image_display_size = function (img) {
+        console.log(img.width, img.height, p.width, p.height);
+        let img_scale = p.width / img.width;
+        img_scale = p.height / img.height < img_scale ? p.height / img.height : img_scale;
+        let img_display_size = {
+            width: img.width * img_scale,
+            height: img.height * img_scale
+        }
+        return img_display_size;
+    };
     settings = {
-        // upload_button: create_button("Upload Image", settings_container)
-        upload_button: p.createFileInput((file) => {
+        upload_button: create_file_input("Upload Image", settings_container, p, "upload_button", async (file) => {
             if (file.type == "image") {
-                img = p.createImg(file.data, '');
-                img.hide();                
+                img = await p.createImg(file.data, '');
+                img.hide();
+                img_display_size = {width: undefined, height: undefined};
             } else {
                 img = null;
             }
         })
     };
-    settings.upload_button.parent(settings_container);
-    settings.upload_button.elt.style.gridColumn = "1 / span 3";
     create_divider(settings_container);
     settings.filename = create_text_input("Filename", settings_container, "filename", "untitled.png");
     settings.download_button = create_button("Download Pattern", settings_container);
     create_divider(settings_container);
     settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
         NUM_STITCHES = v;
-        measure = {dx: undefined, dy: undefined};
+        measure = { dx: undefined, dy: undefined };
         resize_preview_canvas();
     });
     settings.num_rows = create_num_input("Rows", 1, 1000, 1, settings_container, "rows", NUM_ROWS, (v) => {
         NUM_ROWS = v;
-        measure = {dx: undefined, dy: undefined};
+        measure = { dx: undefined, dy: undefined };
         resize_preview_canvas();
     });
     settings.measure_button = create_button("Measure", settings_container)
     settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
         IMG_THRESHOLD = v;
     });
-    // settings.preview_scale = create_slider("Preview Scale", 1, 15, 0.1, settings_container, "preview-scale", 3, (v) => {
-    //     PREVIEW_SCALE = v;
-    // });
     //
     p.setup = async function () {
         let bbox = get_content_rect(input_canvas_container);
         input_canvas = p.createCanvas(bbox.width, bbox.height, p.WEBGL);
-        pan_zoom = new Controls(input_canvas, p);
         input_canvas.parent(input_canvas_container);
+        pan_zoom = new Controls(input_canvas, p);
+        // load the image, work out the initial size of the image to fill the canvas without distorting
         img = await p.loadImage('pattern.png');
-        let img_scale = p.width / img.width;
-        img_scale = p.height / img.height < img_scale ? p.height / img.height : img_scale;
-        img_display_size = {
-            width: img.width * img_scale,
-            height: img.height * img_scale
-        }
+        img_display_size = p.calc_image_display_size(img, p);
         p.noStroke();
-        bottom_left = p.createVector(-137.5, 100);
-        top_right = p.createVector(126, -97.5);
+        // initial coordinates for the quad corners.
+        bottom_left = p.createVector(-3 * img_display_size.width / 8, 3 * img_display_size.height / 8);
+        top_right = p.createVector(3 * img_display_size.width / 8, -3 * img_display_size.height / 8);
         bottom_right = p.createVector(top_right.x, bottom_left.y);
         top_left = p.createVector(bottom_left.x, top_right.y);
         p.rectMode(p.CORNERS);
-        q = new Quad(p.createVector(-150, 100), p.createVector(130, 90), p.createVector(100, -150), p.createVector(-120, -140), p);
-        info = document.getElementById("info");
+        q = new Quad(bottom_left, bottom_right, top_right, top_left, p);
         settings.measure_button.onclick = () => {
             measure.dx = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / NUM_STITCHES;
             measure.dy = (q.top_right.pos.dist(q.bottom_right.pos) + q.top_left.pos.dist(q.bottom_left.pos)) / 2 / NUM_ROWS;
         };
     }
     p.draw = function () {
-        if (img) {
+        if (img) { // only draw if the image has actually been loaded. Shouldn't need this, but seems to be necessary sometimes.
+            if (img_display_size.width == undefined || img_display_size.height == undefined) {
+                // image has just been loaded and the size has not been set yet
+                img_display_size = p.calc_image_display_size(img);
+                q.bottom_left.pos = p.createVector(-3 * img_display_size.width / 8, 3 * img_display_size.height / 8);
+                q.top_right.pos = p.createVector(3 * img_display_size.width / 8, -3 * img_display_size.height / 8);
+                q.bottom_right.pos = p.createVector(q.top_right.pos.x, q.bottom_left.pos.y);
+                q.top_left.pos = p.createVector(q.bottom_left.pos.x, q.top_right.pos.y);
+                has_changed = true;
+            } 
             p.background(colours.background[4]);
             pan_zoom.apply_pan_zoom(p);
             p.imageMode(p.CENTER);
@@ -436,7 +444,7 @@ function input_sketch(p) {
             pan_zoom.undo_pan_zoom(p);
             // definitely a better way to do this, but it works.
             has_changed = !(
-                   last_corners[0].x == q.bottom_left.pos.x
+                last_corners[0].x == q.bottom_left.pos.x
                 && last_corners[0].y == q.bottom_left.pos.y
                 && last_corners[1].x == q.bottom_right.pos.x
                 && last_corners[1].y == q.bottom_right.pos.y
@@ -458,13 +466,14 @@ function input_sketch(p) {
         } else {
             p.background(colours.background[4]);
         }
-        // p.noLoop();
     }
     p.mousePressed = function () {
+        // just passed on to the quad
         q.pressed();
     }
     p.mouseReleased = function () {
         q.released();
+        // if we've previously "measured", apply that measurement.
         if (measure.dx != undefined && measure.dy != undefined) {
             let s = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / measure.dx;
             s = Math.round(s);
@@ -491,7 +500,7 @@ let preview_canvas_container = document.getElementById("preview-panel");
 let preview_canvas;
 function preview_sketch(p) {
     p.setup = async function () {
-        p.pixelDensity(1);
+        p.pixelDensity(1); // VERY IMPORTANT
         preview_canvas = p.createCanvas(NUM_STITCHES, NUM_ROWS, p.WEBGL);
         preview_canvas.parent(preview_canvas_container);
         imgShader = await p.loadShader('shader.vert', 'shader.frag');
@@ -506,14 +515,16 @@ function preview_sketch(p) {
         resize_preview_canvas();
     };
     p.draw = function () {
+        // Only draw if there have been changes. Could probably use noLoop and a call draw explicitly on changes instead, but oh well.
         if (has_changed && p && img) { // guard since occasionally these won't be loaded by the time this starts.
-            p.pixelDensity(1); // have to set this again in chrome for some reason. Really messes with stuff if it's wrong.#
+            p.pixelDensity(1); // have to set this again in chrome for some reason. Really messes with stuff if it's wrong.
             p.resizeCanvas(NUM_STITCHES, NUM_ROWS);
             p.background(colours.red[5]);
             p.imageMode(p.CENTER);
             p.imageShader(imgShader);
             imgShader.setUniform('uNumCells', [NUM_STITCHES, NUM_ROWS]);
             imgShader.setUniform('uThreshold', IMG_THRESHOLD);
+            // coords between 0 and 1
             imgShader.setUniform('uBottomLeft', [q.bottom_left.pos.x / img_display_size.width + 0.5, q.bottom_left.pos.y / img_display_size.height + 0.5]);
             imgShader.setUniform('uTopRight', [q.top_right.pos.x / img_display_size.width + 0.5, q.top_right.pos.y / img_display_size.height + 0.5]);
             imgShader.setUniform('uBottomRight', [q.bottom_right.pos.x / img_display_size.width + 0.5, q.bottom_right.pos.y / img_display_size.height + 0.5]);
@@ -527,3 +538,8 @@ function preview_sketch(p) {
 }
 
 new p5(preview_sketch);
+
+window.onresize = () => {
+    resize_input_canvas();
+    resize_preview_canvas();
+}
