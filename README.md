@@ -2,7 +2,7 @@
 
 *A simple tool for extracting machine knitting patterns from scanned or photographed images.*
 
-You can access the tool [here](#). Please note that you will need a mouse or trackpad; it will not currently work with a touchscreen.
+You can access the tool [here](https://ech0-chambers.github.io/pattern_finder/). Please note that you will need a mouse or trackpad; it will not currently work with a touchscreen.
 
 ## Basic Usage
 
