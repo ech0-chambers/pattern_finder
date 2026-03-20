@@ -1,6 +1,23 @@
+@font-face {
+    font-family: 'Fira Sans';
+    src: url('FiraSans-Light.ttf');
+}
+
 * {
     color: var(--clr-foreground);
     font-family: 'Fira Sans', sans-serif;
+}
+
+a {
+    display: inline-block;
+    color: var(--clr-blue);
+    height: 1em;
+    width: 1em;
+    border-radius: 50%;
+    border: 2px solid var(--clr-blue-4);
+    text-align: center;
+    text-decoration: none;
+    font-size: 2rem;
 }
 
 div.divider {
@@ -19,6 +36,10 @@ div#topbar {
   justify-content: center;
   align-items: start;
   padding-inline: 1em;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 }
 
 div#sidebar-top {

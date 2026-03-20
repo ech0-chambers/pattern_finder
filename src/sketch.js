@@ -324,6 +324,7 @@ let img;
 let img_display_size;
 let has_changed = true; // this will be false unless something has been modified in the latest loop. 
 // Only draws the shader (output) if something has changed.
+let font;
 
 
 function get_content_rect(element) {
@@ -365,7 +366,6 @@ let last_threshold;
 function input_sketch(p) {
     // Create the settings menu
     p.calc_image_display_size = function (img) {
-        console.log(img.width, img.height, p.width, p.height);
         let img_scale = p.width / img.width;
         img_scale = p.height / img.height < img_scale ? p.height / img.height : img_scale;
         let img_display_size = {
@@ -410,12 +410,13 @@ function input_sketch(p) {
         input_canvas.parent(input_canvas_container);
         pan_zoom = new Controls(input_canvas, p);
         // load the image, work out the initial size of the image to fill the canvas without distorting
-        img = await p.loadImage('pattern.png');
-        img_display_size = p.calc_image_display_size(img, p);
+        // img = await p.loadImage('pattern.png');
+        // img_display_size = p.calc_image_display_size(img, p);
+        font = await p.loadFont('FiraSans-Light.ttf');
         p.noStroke();
-        // initial coordinates for the quad corners.
-        bottom_left = p.createVector(-3 * img_display_size.width / 8, 3 * img_display_size.height / 8);
-        top_right = p.createVector(3 * img_display_size.width / 8, -3 * img_display_size.height / 8);
+        // initial coordinates for the quad corners. These should be overridden before being drawn, so don't matter.
+        bottom_left = p.createVector(-10, 10);
+        top_right = p.createVector(10, -10);
         bottom_right = p.createVector(top_right.x, bottom_left.y);
         top_left = p.createVector(bottom_left.x, top_right.y);
         p.rectMode(p.CORNERS);
@@ -426,7 +427,7 @@ function input_sketch(p) {
         };
     }
     p.draw = function () {
-        if (img) { // only draw if the image has actually been loaded. Shouldn't need this, but seems to be necessary sometimes.
+        if (img && img.width > 0 && img.height > 0) { // only draw if the image has actually been loaded. Shouldn't need this, but seems to be necessary sometimes.
             if (img_display_size.width == undefined || img_display_size.height == undefined) {
                 // image has just been loaded and the size has not been set yet
                 img_display_size = p.calc_image_display_size(img);
@@ -465,6 +466,11 @@ function input_sketch(p) {
             last_threshold = IMG_THRESHOLD;
         } else {
             p.background(colours.background[4]);
+            p.fill(colours.red.base);
+            p.textFont(font);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.textSize(28);
+            p.text('Please upload an image', 0, 0);
         }
     }
     p.mousePressed = function () {
