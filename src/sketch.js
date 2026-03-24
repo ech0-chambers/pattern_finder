@@ -644,7 +644,7 @@ function preview_sketch(p) {
                 filename += settings.text_file_extensions.value;
                 p.loadPixels();
                 out = ""
-                let on = settings.text_file_extensions.value == ".txt" ? "#" : "1";
+                let on = settings.text_file_extensions.value == ".txt" ? "X" : "1";
                 let off = settings.text_file_extensions.value == ".txt" ? "-" : "0";
                 let delimiter = settings.text_file_extensions.value == ".txt" ? "" : settings.text_file_extensions.value == ".csv" ? "," : "\t"; 
                 if (settings.text_type_dropdown.value == "Fair Isle") {
