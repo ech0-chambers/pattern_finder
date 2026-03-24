@@ -41,7 +41,7 @@ function create_num_input(label, min = 0, max = 10, step = 1, parent = document.
     let l = document.createElement("span");
     l.classList.add("num-input-label");
     l.innerText = label;
-    l.style.gridColum = "1";
+    l.style.gridColumn = "1";
     parent.appendChild(l);
     let s = document.createElement("input");
     s.type = "number";
@@ -78,7 +78,7 @@ function create_text_input(label, parent = document.body, name = undefined, valu
     let l = document.createElement("span");
     l.classList.add("text-input-label");
     l.innerText = label;
-    l.style.gridColum = "1";
+    l.style.gridColumn = "1";
     parent.appendChild(l);
     let s = document.createElement("input");
     s.type = "text";
@@ -101,7 +101,7 @@ function create_dropdown(label, options, parent = document.body, name = undefine
     let l = document.createElement("span");
     l.classList.add("dropdown-input-label");
     l.innerText = label;
-    l.style.gridColum = "1";
+    l.style.gridColumn = "1";
     parent.appendChild(l);
     let s = document.createElement("select");
     s.name = name;
@@ -436,6 +436,9 @@ let last_num_stitches;
 let last_num_rows;
 let last_threshold;
 
+let img_extensions = [".png", ".jpg", ".bmp"];
+let text_extensions = [".txt", ".csv", ".tsv"];
+
 function input_sketch(p) {
     // Create the settings menu
     p.calc_image_display_size = function (img) {
@@ -447,7 +450,7 @@ function input_sketch(p) {
         }
         return img_display_size;
     };
-    create_header("Upload", settings_container, 3);
+    create_header("Upload", settings_container, 2);
     settings = {
         upload_button: create_file_input("Upload Image", settings_container, p, "upload_button", async (file) => {
             if (file.type == "image") {
@@ -460,18 +463,43 @@ function input_sketch(p) {
         })
     };
     create_divider(settings_container);
-    create_header("Download", settings_container, 3);
-    settings.filename = create_text_input("Filename", settings_container, "filename", "untitled.png");
+    create_header("Download", settings_container, 2);
+    settings.filename = create_text_input("Filename", settings_container, "filename", "untitled");
+    settings.img_file_extensions = document.createElement("select");
+    img_extensions.forEach((e) => {
+        let o = document.createElement("option");
+        o.innerText = e;
+        o.value = e;
+        settings.img_file_extensions.appendChild(o);
+    });
+    settings.img_file_extensions.style.gridColumn = "3";
+    settings.text_file_extensions = document.createElement("select");
+    text_extensions.forEach((e) => {
+        let o = document.createElement("option");
+        o.innerText = e;
+        o.value = e;
+        settings.text_file_extensions.appendChild(o);
+    });
+    settings.text_file_extensions.style.gridColumn = "3";
+    hide(settings.text_file_extensions);
+    settings_container.removeChild(settings.filename.nextSibling);
+    settings_container.appendChild(settings.img_file_extensions);
+    settings_container.appendChild(settings.text_file_extensions);
     settings.download_format_dropdown = create_dropdown("Format", ["Image", "Text"], settings_container, "download_format", 0, undefined);
     settings.text_type_dropdown = create_dropdown("Pattern Type", ["Fair Isle", "Double Bed Jacquard"], settings_container, "pattern_type", 0, undefined);
     settings.download_format_dropdown.onchange = (e) => { 
         let f;
+        let exts;
         if (e.target.value == "Image") { 
             f = hide;
-            settings.filename.value = set_extension(settings.filename.value, "png");
+            // settings.filename.value = set_extension(settings.filename.value, "png");
+            hide(settings.text_file_extensions);
+            show(settings.img_file_extensions);
         } else { 
             f = show;
-            settings.filename.value = set_extension(settings.filename.value, "txt");
+            // settings.filename.value = set_extension(settings.filename.value, "txt");
+            show(settings.text_file_extensions);
+            hide(settings.img_file_extensions);
         };
         let l = settings.text_type_dropdown.previousSibling;
         let d = settings.text_type_dropdown.nextSibling;
@@ -484,7 +512,7 @@ function input_sketch(p) {
     hide(settings.text_type_dropdown.nextSibling);
     settings.download_button = create_button("Download Pattern", settings_container);
     create_divider(settings_container);
-    create_header("Parameters", settings_container, 3);
+    create_header("Parameters", settings_container, 2);
     settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
         NUM_STITCHES = v;
         measure = { dx: undefined, dy: undefined };
@@ -610,18 +638,20 @@ function preview_sketch(p) {
         settings.download_button.onclick = () => {
             let filename = settings.filename.value;
             if (settings.download_format_dropdown.value == "Image") {
-                if (!filename.endsWith(".png")) {
-                    filename = filename + ".png";
-                }
+                filename += settings.img_file_extensions.value;
                 p.saveCanvas(filename);
             } else {
+                filename += settings.text_file_extensions.value;
                 p.loadPixels();
                 out = ""
+                let on = settings.text_file_extensions.value == ".txt" ? "#" : "1";
+                let off = settings.text_file_extensions.value == ".txt" ? "-" : "0";
+                let delimiter = settings.text_file_extensions.value == ".txt" ? "" : settings.text_file_extensions.value == ".csv" ? "," : "\t"; 
                 if (settings.text_type_dropdown.value == "Fair Isle") {
                     for (let r = 0; r < NUM_ROWS; r++) {
                         for (let s = 0; s < NUM_STITCHES; s++) {
                             let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
-                            out += pixel < 128 ? "#" : "-"
+                            out += (pixel < 128 ? on : off) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
                     }
@@ -630,18 +660,18 @@ function preview_sketch(p) {
                     for (let r = 0; r < NUM_ROWS; r++) {
                         for (let s = 0; s < NUM_STITCHES; s++) {
                             let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
-                            out += odd_row ^ pixel < 128 ? "#" : "-"
+                            out += (odd_row ^ pixel < 128 ? on : off) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
                         for (let s = 0; s < NUM_STITCHES; s++) {
                             let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
-                            out += odd_row ^ pixel < 128 ? "-" : "#";
+                            out += (odd_row ^ pixel < 128 ? off : on) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
                         odd_row = !odd_row;
                     }
                 }
-                download_text(settings.filename.value, out);
+                download_text(settings.filename.value + settings.text_file_extensions.value, out);
             }
         }
         resize_preview_canvas();
