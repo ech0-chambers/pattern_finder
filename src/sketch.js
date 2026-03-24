@@ -1,5 +1,5 @@
 
-function create_slider(label, min = 0, max = 10, step = 1, parent = document, name = undefined, value = undefined, onchange = undefined) {
+function create_slider(label, min = 0, max = 10, step = 1, parent = document.body, name = undefined, value = undefined, onchange = undefined) {
     name = name == undefined ? label : name;
     value = value == undefined ? (max + min) / 2 : value;
     let d = document.createElement("div");
@@ -35,7 +35,7 @@ function create_slider(label, min = 0, max = 10, step = 1, parent = document, na
     return s;
 }
 
-function create_num_input(label, min = 0, max = 10, step = 1, parent = document, name = undefined, value = undefined, onchange = undefined, default_value = 1) {
+function create_num_input(label, min = 0, max = 10, step = 1, parent = document.body, name = undefined, value = undefined, onchange = undefined, default_value = 1) {
     name = name == undefined ? label : name;
     value = value == undefined ? (max + min) / 2 : value;
     let l = document.createElement("span");
@@ -72,7 +72,7 @@ function create_num_input(label, min = 0, max = 10, step = 1, parent = document,
     return s;
 }
 
-function create_text_input(label, parent = document, name = undefined, value = undefined, onchange = undefined) {
+function create_text_input(label, parent = document.body, name = undefined, value = undefined, onchange = undefined) {
     name = name == undefined ? label : name;
     value = value == undefined ? "" : value;
     let l = document.createElement("span");
@@ -95,7 +95,38 @@ function create_text_input(label, parent = document, name = undefined, value = u
     return s;
 }
 
-function create_button(label, parent = document, name = undefined, onclick = undefined) {
+function create_dropdown(label, options, parent = document.body, name = undefined, value = undefined, onchange = undefined) {
+    name = name == undefined ? label : name;
+    value = value == undefined ? 0 : value;
+    let l = document.createElement("span");
+    l.classList.add("dropdown-input-label");
+    l.innerText = label;
+    l.style.gridColum = "1";
+    parent.appendChild(l);
+    let s = document.createElement("select");
+    s.name = name;
+    s.id = name;
+    parent.appendChild(s);
+    options.forEach(
+        (option) => {
+            let o = document.createElement("option");
+            o.innerText = option;
+            o.value = option;
+            s.appendChild(o);
+        }
+    );
+    if (typeof value == 'number') {
+        value = options[value];
+    }
+    s.value = value;
+    d = document.createElement("div");
+    d.classList.add("spacer");
+    d.style.gridColumn = "3";
+    parent.appendChild(d);
+    return s;
+}
+
+function create_button(label, parent = document.body, name = undefined, onclick = undefined) {
     name = name == undefined ? label : name;
     let b = document.createElement("button");
     b.innerText = label;
@@ -107,7 +138,7 @@ function create_button(label, parent = document, name = undefined, onclick = und
     return b;
 }
 
-function create_file_input(label, parent = document, p, name = undefined, onclick = undefined) {
+function create_file_input(label, parent = document.body, p, name = undefined, onclick = undefined) {
     if (name == undefined) {
         name = label;
     }
@@ -133,6 +164,48 @@ function create_divider(parent) {
     d.style.gridColumn = "1 / span 3";
     parent.appendChild(d);
     return d;
+}
+
+function create_header(text, parent = document.body, level = 2) {
+    let h = document.createElement(`h${level}`);
+    h.innerText = text;
+    h.style.gridColumn = "1 / span 3";
+    parent.appendChild(h);
+    return h;
+}
+
+
+function create_p(text, parent = document.body) {
+    let p = document.createElement(`p`);
+    p.innerHTML = text;
+    p.style.gridColumn = "1 / span 3";
+    parent.appendChild(p);
+    return p;
+}
+
+function hide(elem) {
+    elem.classList.add("hidden");
+}
+
+function show(elem) {
+    elem.classList.remove("hidden");
+}
+
+function set_extension(filename, new_ext) {
+    let a = filename.split(".");
+    a[a.length - 1] = new_ext;
+    return a.join(".");
+}
+
+function download_text(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
 }
 
 function hexToRgb(hex) {
@@ -374,21 +447,44 @@ function input_sketch(p) {
         }
         return img_display_size;
     };
+    create_header("Upload", settings_container, 3);
     settings = {
         upload_button: create_file_input("Upload Image", settings_container, p, "upload_button", async (file) => {
             if (file.type == "image") {
                 img = await p.createImg(file.data, '');
                 img.hide();
-                img_display_size = {width: undefined, height: undefined};
+                img_display_size = { width: undefined, height: undefined };
             } else {
                 img = null;
             }
         })
     };
     create_divider(settings_container);
+    create_header("Download", settings_container, 3);
     settings.filename = create_text_input("Filename", settings_container, "filename", "untitled.png");
+    settings.download_format_dropdown = create_dropdown("Format", ["Image", "Text"], settings_container, "download_format", 0, undefined);
+    settings.text_type_dropdown = create_dropdown("Pattern Type", ["Fair Isle", "Double Bed Jacquard"], settings_container, "pattern_type", 0, undefined);
+    settings.download_format_dropdown.onchange = (e) => { 
+        let f;
+        if (e.target.value == "Image") { 
+            f = hide;
+            settings.filename.value = set_extension(settings.filename.value, "png");
+        } else { 
+            f = show;
+            settings.filename.value = set_extension(settings.filename.value, "txt");
+        };
+        let l = settings.text_type_dropdown.previousSibling;
+        let d = settings.text_type_dropdown.nextSibling;
+        f(l);
+        f(settings.text_type_dropdown);
+        f(d);
+    };
+    hide(settings.text_type_dropdown.previousSibling);
+    hide(settings.text_type_dropdown);
+    hide(settings.text_type_dropdown.nextSibling);
     settings.download_button = create_button("Download Pattern", settings_container);
     create_divider(settings_container);
+    create_header("Parameters", settings_container, 3);
     settings.num_stitches = create_num_input("Stitches", 1, 300, 1, settings_container, "stitches", NUM_STITCHES, (v) => {
         NUM_STITCHES = v;
         measure = { dx: undefined, dy: undefined };
@@ -436,7 +532,7 @@ function input_sketch(p) {
                 q.bottom_right.pos = p.createVector(q.top_right.pos.x, q.bottom_left.pos.y);
                 q.top_left.pos = p.createVector(q.bottom_left.pos.x, q.top_right.pos.y);
                 has_changed = true;
-            } 
+            }
             p.background(colours.background[4]);
             pan_zoom.apply_pan_zoom(p);
             p.imageMode(p.CENTER);
@@ -513,10 +609,40 @@ function preview_sketch(p) {
         p.noStroke();
         settings.download_button.onclick = () => {
             let filename = settings.filename.value;
-            if (!filename.endsWith(".png")) {
-                filename = filename + ".png";
+            if (settings.download_format_dropdown.value == "Image") {
+                if (!filename.endsWith(".png")) {
+                    filename = filename + ".png";
+                }
+                p.saveCanvas(filename);
+            } else {
+                p.loadPixels();
+                out = ""
+                if (settings.text_type_dropdown.value == "Fair Isle") {
+                    for (let r = 0; r < NUM_ROWS; r++) {
+                        for (let s = 0; s < NUM_STITCHES; s++) {
+                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            out += pixel < 128 ? "#" : "-"
+                        }
+                        out += "\n";
+                    }
+                } else if (settings.text_type_dropdown.value == "Double Bed Jacquard") {
+                    let odd_row = true;
+                    for (let r = 0; r < NUM_ROWS; r++) {
+                        for (let s = 0; s < NUM_STITCHES; s++) {
+                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            out += odd_row ^ pixel < 128 ? "#" : "-"
+                        }
+                        out += "\n";
+                        for (let s = 0; s < NUM_STITCHES; s++) {
+                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            out += odd_row ^ pixel < 128 ? "-" : "#";
+                        }
+                        out += "\n";
+                        odd_row = !odd_row;
+                    }
+                }
+                download_text(settings.filename.value, out);
             }
-            p.saveCanvas(filename);
         }
         resize_preview_canvas();
     };

@@ -14,7 +14,7 @@ In the sidebar, set the number of stitches and rows in your pattern. You may nee
 
 For large patterns, finding the total number of stitches or rows in the pattern might be quite tedious. Instead, you can manipulate the selected area to cover a small region of known dimensions (say, 20 stitches by 20 rows). Enter these dimensions as normal, then click "measure". This will record the size of the stitches and rows. Now manipulate the selected area to cover the entire pattern. You'll notice that the number of stitches and rows has been automatically filled in. However, this is only an estimate, and may need to be fine-tuned by one or two stitches.
 
-Once you are happy with the pattern, change the filename and then click "Download" in the sidebar. This will save the pattern as an image suitable for AYAB, DAK, etc.
+Once you are happy with the pattern, change the filename and then click "Download" in the sidebar. This will save the pattern as an image suitable for AYAB, DAK, etc. You'll see an additional dropdown to select the file format. This lets you choose between "Image" (for AYAB etc), and "Text", for use with [Brenda Bell's Punchcard Generator](https://brendaabell.com/knittingtools/pcgenerator/). If you select "TexT", a new dropdown will appear for the pattern type; Fair Isle, or Double Bed Jacquard. Select your option, then click "Download".
 
 ## Limitations
 
