@@ -78,6 +78,17 @@ div#controls {
   }
 }
 
+div#colours {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 1em;
+  align-items: center;
+  & span {
+    height: 2em;
+    width: 100%;
+  }
+}
+
 div#source-panel {
   grid-area: editor;
   padding: 1em;

@@ -291,6 +291,7 @@ class Quad {
         this.fill_color = hexToRgb(fill_color);
         this.fill_opacity = fill_opacity;
         this.corners = [this.bottom_left, this.bottom_right, this.top_right, this.top_left];
+        this.any_hovered = false;
     }
 
     closest_corner(pos) {
@@ -316,20 +317,20 @@ class Quad {
         let mousePos = this.p.createVector(this.p.mouseX - this.p.width / 2, this.p.mouseY - this.p.height / 2);
         mousePos = pan_zoom.screen_to_world(mousePos);
         let closest = this.closest_corner(mousePos);
-        let any_hovered = false;
+        this.any_hovered = false;
         this.corners.forEach((c) => {
             if (closest.corner == c && closest.dist < (20 / pan_zoom.scale)) {
                 c.hovered = true
-                any_hovered = true;
+                this.any_hovered = true;
             } else {
                 c.hovered = false
                 if (c.dragging) {
-                    any_hovered = true;
+                    this.any_hovered = true;
                 }
             }
         });
 
-        this.p.prevent_mouse_events = any_hovered; // prevent panning the canvas if we're instead grabbing a corner
+        this.p.prevent_mouse_events = this.any_hovered; // prevent panning the canvas if we're instead grabbing a corner
         // Draw
         this.p.stroke(this.draw_color);
         this.p.strokeWeight(2);
@@ -381,11 +382,15 @@ let NUM_STITCHES = 24; // placeholders
 let NUM_ROWS = 48;
 let IMG_THRESHOLD = 0.5;
 let PREVIEW_SCALE = 3;
+let NUM_COLOURS = 2;
+let AUTO_COLOUR = true;
+let COLOURS;
 
 let q;
 let input_canvas_container = document.getElementById("source-panel");
 let pan_zoom;
 let settings_container = document.getElementById("controls");
+let colours_container = document.getElementById("colours");
 let settings;
 let measure = {
     dx: undefined,
@@ -429,6 +434,113 @@ function resize_input_canvas() {
     input_canvas.resize(bbox.width - 5, bbox.height - 5);
 }
 
+function get_pixels(img) {
+    // get the pixel data from an img element
+    // Creates a canvas, draws the image, then gets the canvas' pixel data. Why is this so convoluted.
+    var c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(img.elt, 0, 0);
+    var imgData = ctx.getImageData(0, 0, c.width, c.height);
+    return imgData.data;
+}
+
+function dsu(arr1, arr2) {
+    return arr1.map(
+        (item, index) => [arr2[index], item]
+    ).sort(
+        ([arg1], [arg2]) => arg2 - arg1
+    ).map(
+        ([, item]) => item
+    );
+}
+
+function componentToHex(c) {
+    c = Math.round(c);
+  var hex = c.toString(16);
+  return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+function detect_colours(p) {
+    if (img == undefined) {
+        return;
+    }
+    if (!AUTO_COLOUR) {
+        return;
+    }
+    let pixels = get_pixels(img);
+    /*
+        1. Calculate centre of each grid cell
+        2. Take several samples per grid cell
+        3. k-means sampling 
+    */
+    // grid cells
+    let grid_centres = [];
+    let samples_per_cell = 3; // per axis
+    for (let xi = 0; xi < NUM_STITCHES; xi++) {
+        for (let xii = 0; xii < samples_per_cell; xii++) {
+            let x = xi + (xii + 1) / (samples_per_cell + 1);
+            let top = p5.Vector.lerp(q.top_left.pos, q.top_right.pos, x / NUM_STITCHES);
+            let bottom = p5.Vector.lerp(q.bottom_left.pos, q.bottom_right.pos, x / NUM_STITCHES);
+            for (let yi = 0; yi < NUM_ROWS; yi++) {
+                for (let yii = 0; yii < samples_per_cell; yii++) {
+                    let y = yi + (yii + 1) / (samples_per_cell + 1);
+                    let centre = p5.Vector.lerp(bottom, top, y / NUM_ROWS);
+                    grid_centres.push(
+                        { x: centre.x, y: centre.y } // these are relative to the *displayed* image size
+                    );
+                }
+            }
+        }
+    }
+    let sample_idx = grid_centres.map(
+        (c) => {
+            let x = c.x / img_display_size.width + 0.5;
+            let y = c.y / img_display_size.height + 0.5;
+            x *= img.width;
+            y *= img.height;
+            return Math.round(y) * img.width + Math.round(x);
+        }
+    );
+    let samples = sample_idx.map((idx) => [pixels[idx * 4], pixels[idx * 4 + 1], pixels[idx * 4 + 2]]);
+    // 
+    // Visualisation
+    // ==========================================
+    // 
+    // samples.forEach((s) => {
+    //     console.log(`%c        %c${s[0]}, ${s[1]}, ${s[2]}`, `background-color: rgb(${s[0]}, ${s[1]}, ${s[2]})`, "background-color: white");
+    // });
+    // p.noStroke();
+    // for (let i = 0; i < samples.length; i++) {
+    //     let c = samples[i];
+    //     p.fill(c[0], c[1], c[2]);
+    //     p.circle(grid_centres[i].x, grid_centres[i].y, 2);
+    // }
+    // COLOURS = 1;
+    // 
+    // K means clustering
+    // ==========================================
+    // 
+    let k_clustering = new KMeans();
+    let clusters = k_clustering.cluster(samples, NUM_COLOURS);
+    let centres = k_clustering.centroids;
+    colours_container.innerHTML = "";
+    centres.forEach((c) => {
+        // let s = document.createElement("span");
+        // colours_container.appendChild(s);
+        // s.style.backgroundColor = `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+        let s = document.createElement("input");
+        s.type = "color";
+        s.value = rgbToHex(...c);
+        colours_container.appendChild(s);
+    });
+    COLOURS = centres;
+}
 
 // For tracking changes
 let last_corners = [0, 0, 0, 0];
@@ -454,9 +566,12 @@ function input_sketch(p) {
     settings = {
         upload_button: create_file_input("Upload Image", settings_container, p, "upload_button", async (file) => {
             if (file.type == "image") {
+                console.log("Creating image from upload.");
                 img = await p.createImg(file.data, '');
                 img.hide();
                 img_display_size = { width: undefined, height: undefined };
+                COLOURS = undefined;
+                console.log("Done");
             } else {
                 img = null;
             }
@@ -487,15 +602,15 @@ function input_sketch(p) {
     settings_container.appendChild(settings.text_file_extensions);
     settings.download_format_dropdown = create_dropdown("Format", ["Image", "Text"], settings_container, "download_format", 0, undefined);
     settings.text_type_dropdown = create_dropdown("Pattern Type", ["Fair Isle", "Double Bed Jacquard"], settings_container, "pattern_type", 0, undefined);
-    settings.download_format_dropdown.onchange = (e) => { 
+    settings.download_format_dropdown.onchange = (e) => {
         let f;
         let exts;
-        if (e.target.value == "Image") { 
+        if (e.target.value == "Image") {
             f = hide;
             // settings.filename.value = set_extension(settings.filename.value, "png");
             hide(settings.text_file_extensions);
             show(settings.img_file_extensions);
-        } else { 
+        } else {
             f = show;
             // settings.filename.value = set_extension(settings.filename.value, "txt");
             show(settings.text_file_extensions);
@@ -523,6 +638,21 @@ function input_sketch(p) {
         measure = { dx: undefined, dy: undefined };
         resize_preview_canvas();
     });
+    settings.num_colours = create_num_input("Colours", 2, 6, 1, settings_container, "colours", NUM_COLOURS, (v) => {
+        NUM_COLOURS = v;
+        measure = { dx: undefined, dy: undefined };
+        console.log("Detecting Colours (from num_colours callback)");
+        detect_colours(p);
+        console.log(COLOURS);
+    });
+    settings_container.removeChild(settings.num_colours.nextSibling);
+    settings.auto_colour = document.createElement("input");
+    settings.auto_colour.type = "checkbox";
+    settings.auto_colour.checked = AUTO_COLOUR;
+    settings_container.appendChild(settings.auto_colour);
+    settings.auto_colour.oninput = (e) => {
+        AUTO_COLOUR = e.target.checked;
+    };
     settings.measure_button = create_button("Measure", settings_container)
     settings.threshold = create_slider("Threshold", 0, 1, 0.01, settings_container, "threshold", IMG_THRESHOLD, (v) => {
         IMG_THRESHOLD = v;
@@ -549,6 +679,7 @@ function input_sketch(p) {
             measure.dx = (q.top_right.pos.dist(q.top_left.pos) + q.bottom_right.pos.dist(q.bottom_left.pos)) / 2 / NUM_STITCHES;
             measure.dy = (q.top_right.pos.dist(q.bottom_right.pos) + q.top_left.pos.dist(q.bottom_left.pos)) / 2 / NUM_ROWS;
         };
+        p.frameRate(10);
     }
     p.draw = function () {
         if (img && img.width > 0 && img.height > 0) { // only draw if the image has actually been loaded. Shouldn't need this, but seems to be necessary sometimes.
@@ -561,11 +692,17 @@ function input_sketch(p) {
                 q.top_left.pos = p.createVector(q.bottom_left.pos.x, q.top_right.pos.y);
                 has_changed = true;
             }
+            if (COLOURS == undefined) {
+                console.log("Detecting Colours (from draw)");
+                detect_colours(p);
+                console.log(COLOURS);
+            }
             p.background(colours.background[4]);
             pan_zoom.apply_pan_zoom(p);
             p.imageMode(p.CENTER);
             p.image(img, 0, 0, img_display_size.width, img_display_size.height);
             q.draw(NUM_STITCHES, NUM_ROWS);
+            // detect_colours(p);
             pan_zoom.undo_pan_zoom(p);
             // definitely a better way to do this, but it works.
             has_changed = !(
@@ -602,6 +739,7 @@ function input_sketch(p) {
         q.pressed();
     }
     p.mouseReleased = function () {
+        let should_update_colours = q.any_hovered;
         q.released();
         // if we've previously "measured", apply that measurement.
         if (measure.dx != undefined && measure.dy != undefined) {
@@ -614,6 +752,9 @@ function input_sketch(p) {
             settings.num_rows.value = r;
             NUM_ROWS = r;
             resize_preview_canvas();
+        }
+        if (should_update_colours) {
+            detect_colours(p);
         }
     }
     p.mouseDragged = function (event) {
@@ -646,11 +787,11 @@ function preview_sketch(p) {
                 out = ""
                 let on = settings.text_file_extensions.value == ".txt" ? "X" : "1";
                 let off = settings.text_file_extensions.value == ".txt" ? "-" : "0";
-                let delimiter = settings.text_file_extensions.value == ".txt" ? "" : settings.text_file_extensions.value == ".csv" ? "," : "\t"; 
+                let delimiter = settings.text_file_extensions.value == ".txt" ? "" : settings.text_file_extensions.value == ".csv" ? "," : "\t";
                 if (settings.text_type_dropdown.value == "Fair Isle") {
                     for (let r = 0; r < NUM_ROWS; r++) {
                         for (let s = 0; s < NUM_STITCHES; s++) {
-                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            let pixel = p.pixels[(r * NUM_STITCHES + s) * 4];
                             out += (pixel < 128 ? on : off) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
@@ -659,12 +800,12 @@ function preview_sketch(p) {
                     let odd_row = true;
                     for (let r = 0; r < NUM_ROWS; r++) {
                         for (let s = 0; s < NUM_STITCHES; s++) {
-                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            let pixel = p.pixels[(r * NUM_STITCHES + s) * 4];
                             out += (odd_row ^ pixel < 128 ? on : off) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
                         for (let s = 0; s < NUM_STITCHES; s++) {
-                            let pixel = p.pixels[(r * NUM_STITCHES + s)*4];
+                            let pixel = p.pixels[(r * NUM_STITCHES + s) * 4];
                             out += (odd_row ^ pixel < 128 ? off : on) + (s == NUM_STITCHES - 1 ? "" : delimiter);
                         }
                         out += "\n";
